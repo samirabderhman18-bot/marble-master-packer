@@ -20,7 +20,7 @@ class MaxRectsPacker {
     this.usedRectangles = [];
   }
 
-  insert(width: number, height: number, allowRotation: boolean = true): Rectangle | null {
+  insert(width: number, height: number, allowRotation: boolean = true, cutout?: { width: number; height: number; position: string }): Rectangle | null {
     let bestRect: Rectangle | null = null;
     let bestShortSideFit = Infinity;
     let bestLongSideFit = Infinity;
@@ -62,10 +62,76 @@ class MaxRectsPacker {
 
     if (bestRect) {
       this.placeRectangle(bestRect);
+      
+      // If this is an L-shape, add the cutout area back as free space
+      if (cutout) {
+        this.addCutoutAsFreeSpace(bestRect, cutout, rotated);
+      }
+      
       return { ...bestRect, width: rotated ? height : width, height: rotated ? width : height };
     }
 
     return null;
+  }
+
+  private addCutoutAsFreeSpace(placedRect: Rectangle, cutout: { width: number; height: number; position: string }, rotated: boolean) {
+    let cutoutRect: Rectangle;
+    const pos = cutout.position;
+
+    // Adjust cutout position based on rotation
+    let adjustedPosition = pos;
+    if (rotated) {
+      // Rotate the cutout position 90 degrees clockwise
+      const positionMap: { [key: string]: string } = {
+        'top-right': 'bottom-right',
+        'bottom-right': 'bottom-left',
+        'bottom-left': 'top-left',
+        'top-left': 'top-right'
+      };
+      adjustedPosition = positionMap[pos] || pos;
+    }
+
+    // Calculate cutout rectangle position based on adjusted position
+    switch (adjustedPosition) {
+      case 'top-right':
+        cutoutRect = {
+          x: placedRect.x + placedRect.width - cutout.width,
+          y: placedRect.y,
+          width: cutout.width,
+          height: cutout.height
+        };
+        break;
+      case 'top-left':
+        cutoutRect = {
+          x: placedRect.x,
+          y: placedRect.y,
+          width: cutout.width,
+          height: cutout.height
+        };
+        break;
+      case 'bottom-right':
+        cutoutRect = {
+          x: placedRect.x + placedRect.width - cutout.width,
+          y: placedRect.y + placedRect.height - cutout.height,
+          width: cutout.width,
+          height: cutout.height
+        };
+        break;
+      case 'bottom-left':
+        cutoutRect = {
+          x: placedRect.x,
+          y: placedRect.y + placedRect.height - cutout.height,
+          width: cutout.width,
+          height: cutout.height
+        };
+        break;
+      default:
+        return;
+    }
+
+    // Add the cutout as a new free rectangle
+    this.freeRectangles.push(cutoutRect);
+    this.pruneFreeList();
   }
 
   private placeRectangle(rect: Rectangle) {
@@ -167,7 +233,17 @@ function tryPackingStrategy(pieces: Piece[], slab: SlabDimensions, sortFn: (a: P
     const boundingWidth = piece.width;
     const boundingHeight = piece.height;
     
-    const result = packer.insert(boundingWidth, boundingHeight, true);
+    // Check if this is an L-shape with cutout
+    let cutout = undefined;
+    if ((piece.type === 'l-left' || piece.type === 'l-right') && piece.cutWidth && piece.cutHeight && piece.cutPosition) {
+      cutout = {
+        width: piece.cutWidth,
+        height: piece.cutHeight,
+        position: piece.cutPosition
+      };
+    }
+    
+    const result = packer.insert(boundingWidth, boundingHeight, true, cutout);
     
     if (result) {
       const wasRotated = result.width !== boundingWidth;
@@ -189,7 +265,15 @@ function tryPackingStrategy(pieces: Piece[], slab: SlabDimensions, sortFn: (a: P
   let usedArea = 0;
 
   placedPieces.forEach(piece => {
-    usedArea += piece.width * piece.height;
+    // Calculate actual area used by the piece (excluding cutout for L-shapes)
+    let pieceArea = piece.width * piece.height;
+    
+    if ((piece.type === 'l-left' || piece.type === 'l-right') && piece.cutWidth && piece.cutHeight) {
+      // Subtract the cutout area for L-shapes
+      pieceArea -= piece.cutWidth * piece.cutHeight;
+    }
+    
+    usedArea += pieceArea;
   });
 
   const wasteArea = totalArea - usedArea;
