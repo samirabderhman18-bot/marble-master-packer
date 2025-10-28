@@ -1,17 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Piece, SlabDimensions } from '@/types/shapes';
 
 interface OptimizerCanvasProps {
   pieces: Piece[];
   slab: SlabDimensions;
   onPieceClick: (piece: Piece) => void;
-  onPieceMove: (piece: Piece, x: number, y: number) => void;
 }
 
-export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: OptimizerCanvasProps) => {
+export const OptimizerCanvas = ({ pieces, slab, onPieceClick }: OptimizerCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [draggingPiece, setDraggingPiece] = useState<Piece | null>(null);
-  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -108,19 +105,19 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
 
             ctx.beginPath();
             if (piece.type === 'l-left') {
-              ctx.moveTo(x, y);
-              ctx.lineTo(x + w, y);
-              ctx.lineTo(x + w, y + cutH);
-              ctx.lineTo(x + w - cutW, y + cutH);
-              ctx.lineTo(x + w - cutW, y + h);
-              ctx.lineTo(x, y + h);
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + w, y);
+                ctx.lineTo(x + w, y + h);
+                ctx.lineTo(x + cutW, y + h);
+                ctx.lineTo(x + cutW, y + cutH);
+                ctx.lineTo(x, y + cutH);
             } else { // l-right
-              ctx.moveTo(x + cutW, y);
-              ctx.lineTo(x + w, y);
-              ctx.lineTo(x + w, y + h);
-              ctx.lineTo(x, y + h);
-              ctx.lineTo(x, y + cutH);
-              ctx.lineTo(x + cutW, y + cutH);
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + w, y);
+                ctx.lineTo(x + w, y + cutH);
+                ctx.lineTo(x + w - cutW, y + cutH);
+                ctx.lineTo(x + w - cutW, y + h);
+                ctx.lineTo(x, y + h);
             }
             ctx.closePath();
             ctx.fill();
@@ -213,80 +210,28 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
     ctx.restore();
   };
 
-  const getMousePos = (e: React.MouseEvent) => {
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
+    if (!canvas) return;
+
     const rect = canvas.getBoundingClientRect();
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
-  };
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const mousePos = getMousePos(e);
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
     
     const padding = 60;
-    const availableWidth = canvasRef.current!.width - padding * 2;
-    const availableHeight = canvasRef.current!.height - padding * 2;
-    const scale = Math.min(availableWidth / slab.width, availableHeight / slab.height, 1);
-    const offsetX = padding + (availableWidth - slab.width * scale) / 2;
-    const offsetY = padding + (availableHeight - slab.height * scale) / 2;
-
-    for (const piece of [...pieces].reverse()) {
-      if (piece.x === undefined || piece.y === undefined) continue;
-
-      const x = offsetX + piece.x * scale;
-      const y = offsetY + piece.y * scale;
-      const w = piece.width * scale;
-      const h = piece.height * scale;
-
-      if (mousePos.x >= x && mousePos.x <= x + w && mousePos.y >= y && mousePos.y <= y + h) {
-        setDraggingPiece(piece);
-        setDragOffset({
-          x: (mousePos.x - x) / scale,
-          y: (mousePos.y - y) / scale,
-        });
-        return;
-      }
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!draggingPiece) return;
-
-    const mousePos = getMousePos(e);
+    const availableWidth = canvas.width - padding * 2;
+    const availableHeight = canvas.height - padding * 2;
     
-    const padding = 60;
-    const availableWidth = canvasRef.current!.width - padding * 2;
-    const availableHeight = canvasRef.current!.height - padding * 2;
-    const scale = Math.min(availableWidth / slab.width, availableHeight / slab.height, 1);
-    const offsetX = padding + (availableWidth - slab.width * scale) / 2;
-    const offsetY = padding + (availableHeight - slab.height * scale) / 2;
+    const scaleX = availableWidth / slab.width;
+    const scaleY = availableHeight / slab.height;
+    const scale = Math.min(scaleX, scaleY, 1);
 
-    const newX = (mousePos.x - offsetX) / scale - dragOffset.x;
-    const newY = (mousePos.y - offsetY) / scale - dragOffset.y;
-
-    onPieceMove(draggingPiece, newX, newY);
-  };
-
-  const handleMouseUp = () => {
-    if (draggingPiece) {
-      setDraggingPiece(null);
-    }
-  };
-
-  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const mousePos = getMousePos(e);
-
-    const padding = 60;
-    const availableWidth = canvasRef.current!.width - padding * 2;
-    const availableHeight = canvasRef.current!.height - padding * 2;
-    const scale = Math.min(availableWidth / slab.width, availableHeight / slab.height, 1);
-    const offsetX = padding + (availableWidth - slab.width * scale) / 2;
-    const offsetY = padding + (availableHeight - slab.height * scale) / 2;
+    const scaledWidth = slab.width * scale;
+    const scaledHeight = slab.height * scale;
+    const offsetX = padding + (availableWidth - scaledWidth) / 2;
+    const offsetY = padding + (availableHeight - scaledHeight) / 2;
     
-    for (const piece of [...pieces].reverse()) {
+    for (const piece of pieces) {
       if (piece.x === undefined || piece.y === undefined) continue;
       
       const x = offsetX + piece.x * scale;
@@ -294,9 +239,9 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
       const w = piece.width * scale;
       const h = piece.height * scale;
 
-      if (mousePos.x >= x && mousePos.x <= x + w && mousePos.y >= y && mousePos.y <= y + h) {
+      if (clickX >= x && clickX <= x + w && clickY >= y && clickY <= y + h) {
         onPieceClick(piece);
-        return;
+        break;
       }
     }
   };
@@ -306,11 +251,7 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
       ref={canvasRef}
       width={1200}
       height={800}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onDoubleClick={handleDoubleClick}
+      onClick={handleCanvasClick}
       className="w-full h-auto border-2 border-primary rounded-lg cursor-pointer shadow-lg"
       style={{ background: '#ffffff' }}
     />
