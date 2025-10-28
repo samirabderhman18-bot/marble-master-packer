@@ -53,14 +53,14 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick }: OptimizerCanvasP
       ctx.stroke();
     }
     
-    // Draw slab border
-    ctx.strokeStyle = 'hsl(var(--piece-stroke))';
+    // Draw slab border (more visible)
+    ctx.strokeStyle = 'hsl(var(--primary))';
     ctx.lineWidth = 3;
     ctx.strokeRect(offsetX, offsetY, scaledWidth, scaledHeight);
     
     // Draw axes labels
     ctx.fillStyle = 'hsl(var(--foreground))';
-    ctx.font = '14px system-ui';
+    ctx.font = 'bold 16px system-ui';
     ctx.textAlign = 'center';
     ctx.fillText(`Longueur: ${slab.width}mm`, offsetX + scaledWidth / 2, offsetY - 30);
     ctx.save();
@@ -68,6 +68,15 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick }: OptimizerCanvasP
     ctx.rotate(-Math.PI / 2);
     ctx.fillText(`Largeur: ${slab.height}mm`, 0, 0);
     ctx.restore();
+    
+    // Show message if no pieces
+    if (pieces.length === 0) {
+      ctx.fillStyle = 'hsl(var(--muted-foreground))';
+      ctx.font = '18px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Ajoutez des pièces pour commencer', offsetX + scaledWidth / 2, offsetY + scaledHeight / 2);
+    }
     
     // Draw pieces
     pieces.forEach(piece => {
