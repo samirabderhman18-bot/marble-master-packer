@@ -146,11 +146,12 @@ class MaxRectsPacker {
   }
 }
 
-export function optimizeCutting(pieces: Piece[], slab: SlabDimensions): OptimizationResult {
+// Try different sorting strategies to find best packing
+function tryPackingStrategy(pieces: Piece[], slab: SlabDimensions, sortFn: (a: Piece, b: Piece) => number): OptimizationResult {
   const packer = new MaxRectsPacker(slab.width, slab.height);
   const placedPieces: Piece[] = [];
   const unplacedPieces: Piece[] = [];
-
+  
   const colors = [
     'hsl(var(--piece-fill-1))',
     'hsl(var(--piece-fill-2))',
@@ -160,7 +161,9 @@ export function optimizeCutting(pieces: Piece[], slab: SlabDimensions): Optimiza
     'hsl(var(--piece-fill-6))',
   ];
 
-  pieces.forEach((piece, index) => {
+  const sortedPieces = [...pieces].sort(sortFn);
+
+  sortedPieces.forEach((piece, index) => {
     const boundingWidth = piece.width;
     const boundingHeight = piece.height;
     
@@ -175,7 +178,7 @@ export function optimizeCutting(pieces: Piece[], slab: SlabDimensions): Optimiza
         rotated: wasRotated,
         width: wasRotated ? piece.height : piece.width,
         height: wasRotated ? piece.width : piece.height,
-        color: colors[index % colors.length],
+        color: colors[pieces.indexOf(piece) % colors.length],
       });
     } else {
       unplacedPieces.push(piece);
@@ -199,4 +202,42 @@ export function optimizeCutting(pieces: Piece[], slab: SlabDimensions): Optimiza
     usedArea: Math.round(usedArea),
     unplacedPieces,
   };
+}
+
+export function optimizeCutting(pieces: Piece[], slab: SlabDimensions): OptimizationResult {
+  // Try multiple sorting strategies
+  const strategies = [
+    // Strategy 1: Largest area first
+    (a: Piece, b: Piece) => (b.width * b.height) - (a.width * a.height),
+    // Strategy 2: Longest side first
+    (a: Piece, b: Piece) => Math.max(b.width, b.height) - Math.max(a.width, a.height),
+    // Strategy 3: Shortest side first
+    (a: Piece, b: Piece) => Math.min(b.width, b.height) - Math.min(a.width, a.height),
+    // Strategy 4: Width first
+    (a: Piece, b: Piece) => b.width - a.width,
+    // Strategy 5: Height first
+    (a: Piece, b: Piece) => b.height - a.height,
+    // Strategy 6: Perimeter first
+    (a: Piece, b: Piece) => (b.width + b.height) - (a.width + a.height),
+  ];
+
+  let bestResult: OptimizationResult | null = null;
+
+  // Try each strategy and keep the best result
+  for (const strategy of strategies) {
+    const result = tryPackingStrategy(pieces, slab, strategy);
+    
+    if (!bestResult || 
+        result.unplacedPieces.length < bestResult.unplacedPieces.length ||
+        (result.unplacedPieces.length === bestResult.unplacedPieces.length && result.efficiency > bestResult.efficiency)) {
+      bestResult = result;
+    }
+    
+    // If we found a perfect fit, stop trying
+    if (result.unplacedPieces.length === 0) {
+      break;
+    }
+  }
+
+  return bestResult!;
 }
