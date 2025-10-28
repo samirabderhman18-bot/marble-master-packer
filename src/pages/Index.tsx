@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,10 +9,11 @@ import { PiecesList } from '@/components/PiecesList';
 import { Statistics } from '@/components/Statistics';
 import { EditPieceModal } from '@/components/EditPieceModal';
 import { CustomShapeCreator } from '@/components/CustomShapeCreator';
+import { CameraCapture } from '@/components/CameraCapture';
 import { Piece, ShapeType, OptimizationResult, SlabDimensions } from '@/types/shapes';
 import { optimizeCutting } from '@/utils/maxrects';
 import { toast } from 'sonner';
-import { Play, Loader2 } from 'lucide-react';
+import { Play, Loader2, Camera } from 'lucide-react';
 
 const Index = () => {
   const [slab, setSlab] = useState<SlabDimensions>({ width: 3000, height: 1400 });
@@ -21,6 +22,7 @@ const Index = () => {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   const addShape = (type: ShapeType) => {
     const defaults: Record<ShapeType, Partial<Piece>> = {
@@ -55,14 +57,28 @@ const Index = () => {
     toast.info('Pièce supprimée');
   };
 
-  const handlePieceClick = (piece: Piece) => {
-    setSelectedPiece(piece);
-    setIsEditModalOpen(true);
+  const handlePieceMove = (piece: Piece, x: number, y: number) => {
+    const updatedPieces = pieces.map(p =>
+      p.id === piece.id ? { ...p, x, y } : p
+    );
+    setPieces(updatedPieces.filter(p => p.x !== undefined && p.y !== undefined));
   };
 
   const handleSavePiece = (editedPiece: Piece) => {
     setPieces(pieces.map(p => p.id === editedPiece.id ? editedPiece : p));
     toast.success('Pièce mise à jour!');
+  };
+
+  const handleCapture = (imageData: string) => {
+    // Mock measurement extraction
+    console.log('Captured image data:', imageData.substring(0, 30) + '...');
+    toast.info('Analyse de l\'image en cours...');
+    setTimeout(() => {
+      const mockWidth = Math.floor(Math.random() * 1000) + 2000;
+      const mockHeight = Math.floor(Math.random() * 500) + 1000;
+      setSlab({ width: mockWidth, height: mockHeight });
+      toast.success(`Dimensions mises à jour: ${mockWidth}x${mockHeight}mm`);
+    }, 1500);
   };
 
   const runOptimization = () => {
@@ -86,13 +102,21 @@ const Index = () => {
     }, 800);
   };
 
+  const pieceCount = pieces.length;
+  const initialRender = useRef(true);
+
   useEffect(() => {
-    if (pieces.length > 0) {
+    if (initialRender.current) {
+      initialRender.current = false;
+      return;
+    }
+
+    if (pieceCount > 0) {
       runOptimization();
     } else {
       setOptimizationResult(null);
     }
-  }, [pieces, slab]);
+  }, [pieceCount, slab]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-background p-6">
@@ -109,7 +133,13 @@ const Index = () => {
 
         {/* Slab Dimensions */}
         <Card className="p-4 shadow-md">
-          <h3 className="text-lg font-semibold mb-4">Dimensions de la Dalle</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Dimensions de la Dalle</h3>
+            <Button variant="outline" size="sm" onClick={() => setIsCameraOpen(true)}>
+              <Camera className="w-4 h-4 mr-2" />
+              Capturer les Mesures
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-4 max-w-md">
             <div>
               <Label htmlFor="slabWidth">Longueur (mm)</Label>
@@ -149,7 +179,11 @@ const Index = () => {
               <OptimizerCanvas
                 pieces={optimizationResult?.pieces || []}
                 slab={slab}
-                onPieceClick={handlePieceClick}
+                onPieceClick={(piece) => {
+                  setSelectedPiece(piece);
+                  setIsEditModalOpen(true);
+                }}
+                onPieceMove={handlePieceMove}
               />
             </Card>
 
@@ -188,6 +222,12 @@ const Index = () => {
         open={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         onSave={handleSavePiece}
+      />
+
+      <CameraCapture
+        open={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={handleCapture}
       />
     </div>
   );
