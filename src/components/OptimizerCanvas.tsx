@@ -30,8 +30,8 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick }: OptimizerCanvasP
     const offsetX = padding + (availableWidth - scaledWidth) / 2;
     const offsetY = padding + (availableHeight - scaledHeight) / 2;
     
-    // Clear canvas
-    ctx.fillStyle = 'hsl(var(--canvas-bg))';
+    // Clear canvas with white background
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Draw grid
@@ -106,7 +106,7 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick }: OptimizerCanvasP
           
           // Draw cut-out
           if (piece.cutWidth && piece.cutHeight) {
-            ctx.fillStyle = 'hsl(var(--canvas-bg))';
+            ctx.fillStyle = '#ffffff';
             const cutW = piece.cutWidth * scale;
             const cutH = piece.cutHeight * scale;
             const cutX = piece.type === 'l-left' ? x + w - cutW : x;
