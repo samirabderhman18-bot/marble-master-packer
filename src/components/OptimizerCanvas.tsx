@@ -216,8 +216,8 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick }: OptimizerCanvasP
       width={1200}
       height={800}
       onClick={handleCanvasClick}
-      className="w-full h-auto border-2 border-border rounded-lg bg-canvas cursor-pointer shadow-lg"
-      style={{ background: 'hsl(var(--canvas-bg))' }}
+      className="w-full h-auto border-2 border-primary rounded-lg cursor-pointer shadow-lg"
+      style={{ background: '#ffffff' }}
     />
   );
 };

@@ -107,9 +107,9 @@ All colors MUST be HSL.
     --input: 215 28% 25%;
     --ring: 217 91% 60%;
     
-    --canvas-bg: 215 28% 22%;
-    --canvas-grid: 215 20% 30%;
-    --piece-stroke: 210 40% 90%;
+    --canvas-bg: 0 0% 100%;
+    --canvas-grid: 214 20% 85%;
+    --piece-stroke: 215 25% 35%;
     
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 91% 50%) 100%);
     --gradient-surface: linear-gradient(180deg, hsl(215 28% 20%) 0%, hsl(215 28% 18%) 100%);
