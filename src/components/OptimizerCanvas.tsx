@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Piece, SlabDimensions } from '@/types/shapes';
 
 interface OptimizerCanvasProps {
