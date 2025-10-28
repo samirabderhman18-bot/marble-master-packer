@@ -99,20 +99,33 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick }: OptimizerCanvasP
           
         case 'l-left':
         case 'l-right':
-          ctx.beginPath();
-          ctx.rect(x, y, w, h);
-          ctx.fill();
-          ctx.stroke();
-          
-          // Draw cut-out
           if (piece.cutWidth && piece.cutHeight) {
-            ctx.fillStyle = '#ffffff';
             const cutW = piece.cutWidth * scale;
             const cutH = piece.cutHeight * scale;
-            const cutX = piece.type === 'l-left' ? x + w - cutW : x;
-            const cutY = y;
-            ctx.fillRect(cutX, cutY, cutW, cutH);
-            ctx.strokeRect(cutX, cutY, cutW, cutH);
+
+            ctx.beginPath();
+            if (piece.type === 'l-left') {
+              ctx.moveTo(x, y);
+              ctx.lineTo(x + w, y);
+              ctx.lineTo(x + w, y + cutH);
+              ctx.lineTo(x + w - cutW, y + cutH);
+              ctx.lineTo(x + w - cutW, y + h);
+              ctx.lineTo(x, y + h);
+            } else { // l-right
+              ctx.moveTo(x + cutW, y);
+              ctx.lineTo(x + w, y);
+              ctx.lineTo(x + w, y + h);
+              ctx.lineTo(x, y + h);
+              ctx.lineTo(x, y + cutH);
+              ctx.lineTo(x + cutW, y + cutH);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          } else {
+            // Fallback for L-shapes without cut dimensions
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeRect(x, y, w, h);
           }
           break;
           
@@ -156,24 +169,47 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick }: OptimizerCanvasP
       }
       
       // Draw dimensions and rotation indicator
-      ctx.fillStyle = 'hsl(var(--foreground))';
-      ctx.font = 'bold 12px system-ui';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      const label = piece.rotated ? 
-        `${piece.height}×${piece.width}mm ↻` : 
-        `${piece.width}×${piece.height}mm`;
-      
-      ctx.fillText(label, x + w / 2, y + h / 2);
+      drawMeasurements(ctx, piece, x, y, w, h);
       
       // Draw coordinates
+      ctx.fillStyle = 'hsl(var(--foreground))';
       ctx.font = '10px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
       ctx.fillText(`(${Math.round(piece.x)}, ${Math.round(piece.y)})`, x + w / 2, y + h / 2 + 15);
     });
     
   }, [pieces, slab]);
   
+  const drawMeasurements = (ctx: CanvasRenderingContext2D, piece: Piece, x: number, y: number, w: number, h: number) => {
+    const measurementOffset = 20;
+    const measurementTextOffset = 6;
+
+    ctx.strokeStyle = 'hsl(var(--accent-foreground))';
+    ctx.fillStyle = 'hsl(var(--accent-foreground))';
+    ctx.font = 'bold 12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Horizontal measurement
+    ctx.beginPath();
+    ctx.moveTo(x, y - measurementOffset);
+    ctx.lineTo(x + w, y - measurementOffset);
+    ctx.stroke();
+    ctx.fillText(`${piece.width}mm`, x + w / 2, y - measurementOffset - measurementTextOffset);
+
+    // Vertical measurement
+    ctx.beginPath();
+    ctx.moveTo(x - measurementOffset, y);
+    ctx.lineTo(x - measurementOffset, y + h);
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(x - measurementOffset - measurementTextOffset, y + h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(`${piece.height}mm`, 0, 0);
+    ctx.restore();
+  };
+
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
