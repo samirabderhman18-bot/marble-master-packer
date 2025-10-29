@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,9 +14,10 @@ import { CameraCapture } from '@/components/CameraCapture';
 import { Piece, ShapeType, OptimizationResult, SlabDimensions, OptimizationGoal } from '@/types/shapes';
 import { optimizeCutting } from '@/utils/maxrects';
 import { toast } from 'sonner';
-import { Play, Loader2, Camera } from 'lucide-react';
+import { Play, Loader2, Settings } from 'lucide-react';
 
 const Index = () => {
+  const navigate = useNavigate();
   const [unit, setUnit] = useState<'cm' | 'mm'>('cm');
   const [slab, setSlab] = useState<SlabDimensions>({ 
     width: 300, 
@@ -33,7 +35,7 @@ const Index = () => {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [optimizationGoal, setOptimizationGoal] = useState<OptimizationGoal>('waste-reduction');
   
-  const convertToUnit = (value: number) => unit === 'mm' ? value * 10 : value;
+  const convertToUnit = (value: number) => unit === 'mm' ? Math.round(value * 10) : value;
   const convertFromUnit = (value: number) => unit === 'mm' ? value / 10 : value;
 
   const addShape = (type: ShapeType) => {
@@ -75,12 +77,14 @@ const Index = () => {
     const updatedPieces = pieces.map(p =>
       p.id === piece.id ? { ...p, x, y } : p
     );
-    setPieces(updatedPieces.filter(p => p.x !== undefined && p.y !== undefined));
+    setPieces(updatedPieces);
   };
 
   const handleSavePiece = (editedPiece: Piece) => {
     setPieces(pieces.map(p => p.id === editedPiece.id ? { ...editedPiece, x: undefined, y: undefined } : p));
     toast.success('Pièce mise à jour!');
+    // Trigger re-optimization
+    setTimeout(() => runOptimization(), 100);
   };
   
   const handlePieceRotate = (piece: Piece) => {
@@ -90,26 +94,33 @@ const Index = () => {
       height: piece.width,
       rotated: !piece.rotated,
     };
+    
+    // Handle L-shape rotation
+    if (piece.type === 'l-left' || piece.type === 'l-right') {
+      rotatedPiece.cutWidth = piece.cutHeight;
+      rotatedPiece.cutHeight = piece.cutWidth;
+    }
+    
     setPieces(pieces.map(p => p.id === piece.id ? rotatedPiece : p));
     toast.success('Pièce pivotée!');
+    setTimeout(() => runOptimization(), 100);
   };
 
   const handleCapture = (imageData: string) => {
     console.log('Captured image data:', imageData.substring(0, 30) + '...');
     toast.info('Analyse de l\'image en cours...');
+    
     setTimeout(() => {
       const mockWidth = Math.floor(Math.random() * 100) + 200;
       const mockHeight = Math.floor(Math.random() * 50) + 100;
-      const finalWidth = unit === 'mm' ? mockWidth * 10 : mockWidth;
-      const finalHeight = unit === 'mm' ? mockHeight * 10 : mockHeight;
-      setSlab({ ...slab, width: finalWidth, height: finalHeight });
-      toast.success(`Dimensions mises à jour: ${mockWidth}x${mockHeight}${unit}`);
+      setSlab({ ...slab, width: mockWidth, height: mockHeight });
+      toast.success(`Dimensions mises à jour: ${mockWidth}x${mockHeight}cm`);
     }, 1500);
   };
 
   const runOptimization = () => {
     if (pieces.length === 0) {
-      toast.error('Ajoutez au moins une pièce!');
+      setOptimizationResult(null);
       return;
     }
 
@@ -127,7 +138,7 @@ const Index = () => {
       } else {
         toast.success(`Efficacité: ${result.efficiency}% (cible: 70-85%). ${message}`);
       }
-    }, 800);
+    }, 500);
   };
 
   const pieceCount = pieces.length;
@@ -144,16 +155,27 @@ const Index = () => {
     } else {
       setOptimizationResult(null);
     }
-  }, [pieceCount, slab]);
+  }, [pieceCount, slab.width, slab.height, slab.margin, slab.minSpacing, optimizationGoal]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-background p-6">
       <div className="max-w-[1800px] mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Optimiseur de Découpe de Marbre
-          </h1>
+          <div className="flex items-center justify-center gap-4">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              Optimiseur de Découpe de Marbre
+            </h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/management')}
+              className="ml-4"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Gestion
+            </Button>
+          </div>
           <p className="text-muted-foreground">
             Testez des milliers de combinaisons pour maximiser l'utilisation de matériau (cible: 70-85%)
           </p>
@@ -183,7 +205,10 @@ const Index = () => {
                 </button>
               </div>
               <Button variant="outline" size="sm" onClick={() => setIsCameraOpen(true)}>
-                <Camera className="w-4 h-4 mr-2" />
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
                 Capturer
               </Button>
             </div>
@@ -195,9 +220,9 @@ const Index = () => {
                 id="slabWidth"
                 type="number"
                 value={convertToUnit(slab.width)}
-                onChange={(e) => setSlab({ ...slab, width: convertFromUnit(parseFloat(e.target.value)) })}
+                onChange={(e) => setSlab({ ...slab, width: convertFromUnit(parseFloat(e.target.value) || 0) })}
                 min={1}
-                step={unit === 'mm' ? 1 : 0.1}
+                step={unit === 'mm' ? 10 : 1}
               />
             </div>
             <div>
@@ -206,9 +231,9 @@ const Index = () => {
                 id="slabHeight"
                 type="number"
                 value={convertToUnit(slab.height)}
-                onChange={(e) => setSlab({ ...slab, height: convertFromUnit(parseFloat(e.target.value)) })}
+                onChange={(e) => setSlab({ ...slab, height: convertFromUnit(parseFloat(e.target.value) || 0) })}
                 min={1}
-                step={unit === 'mm' ? 1 : 0.1}
+                step={unit === 'mm' ? 10 : 1}
               />
             </div>
             <div>
@@ -217,7 +242,7 @@ const Index = () => {
                 id="margin"
                 type="number"
                 value={convertToUnit(slab.margin || 1)}
-                onChange={(e) => setSlab({ ...slab, margin: convertFromUnit(parseFloat(e.target.value)) })}
+                onChange={(e) => setSlab({ ...slab, margin: convertFromUnit(parseFloat(e.target.value) || 0) })}
                 min={0}
                 step={unit === 'mm' ? 1 : 0.1}
               />
@@ -228,7 +253,7 @@ const Index = () => {
                 id="spacing"
                 type="number"
                 value={convertToUnit(slab.minSpacing || 0.5)}
-                onChange={(e) => setSlab({ ...slab, minSpacing: convertFromUnit(parseFloat(e.target.value)) })}
+                onChange={(e) => setSlab({ ...slab, minSpacing: convertFromUnit(parseFloat(e.target.value) || 0) })}
                 min={0}
                 step={unit === 'mm' ? 1 : 0.1}
               />
@@ -269,7 +294,7 @@ const Index = () => {
         <div className="grid lg:grid-cols-[1fr_350px] gap-6">
           {/* Main Canvas Area */}
           <div className="space-y-4">
-            <Card className="p-4 shadow-lg">
+            <Card className="p-4 shadow-lg relative">
               {isOptimizing && (
                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
                   <div className="text-center space-y-4">
