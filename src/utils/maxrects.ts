@@ -15,14 +15,14 @@ interface PlacementAttempt {
 }
 
 const PIECE_COLORS = [
-  'hsl(210, 85%, 70%)',   // Vibrant blue
-  'hsl(145, 75%, 65%)',   // Vibrant green
-  'hsl(340, 80%, 70%)',   // Vibrant pink
-  'hsl(45, 95%, 65%)',    // Vibrant yellow
-  'hsl(270, 75%, 70%)',   // Vibrant purple
-  'hsl(25, 90%, 65%)',    // Vibrant orange
-  'hsl(195, 80%, 65%)',   // Vibrant cyan
-  'hsl(15, 85%, 68%)',    // Vibrant coral
+  'hsl(210, 85%, 70%)',
+  'hsl(145, 75%, 65%)',
+  'hsl(340, 80%, 70%)',
+  'hsl(45, 95%, 65%)',
+  'hsl(270, 75%, 70%)',
+  'hsl(25, 90%, 65%)',
+  'hsl(195, 80%, 65%)',
+  'hsl(15, 85%, 68%)',
 ];
 
 function getPieceArea(piece: Piece): number {
@@ -94,6 +94,32 @@ function calculatePlacementScore(
   }
 }
 
+function splitRectangle(rect: FreeRectangle, piece: Piece, x: number, y: number, spacing: number): FreeRectangle[] {
+  const newRects: FreeRectangle[] = [];
+  
+  // Right remainder
+  if (rect.x + rect.width > x + piece.width + spacing) {
+    newRects.push({
+      x: x + piece.width + spacing,
+      y: rect.y,
+      width: rect.x + rect.width - (x + piece.width + spacing),
+      height: rect.height,
+    });
+  }
+  
+  // Bottom remainder
+  if (rect.y + rect.height > y + piece.height + spacing) {
+    newRects.push({
+      x: rect.x,
+      y: y + piece.height + spacing,
+      width: rect.width,
+      height: rect.y + rect.height - (y + piece.height + spacing),
+    });
+  }
+  
+  return newRects.filter(r => r.width > 0 && r.height > 0);
+}
+
 function tryPackingStrategy(
   pieces: Piece[], 
   slab: SlabDimensions,
@@ -116,14 +142,13 @@ function tryPackingStrategy(
   let cuttingOrder = 1;
   
   for (const piece of sortedPieces) {
-    let placed = false;
     let bestPlacement: PlacementAttempt | null = null;
     
     for (const rect of freeRects) {
       const placements: PlacementAttempt[] = [];
       
       // Try normal orientation
-      if (piece.width + minSpacing <= rect.width && piece.height + minSpacing <= rect.height) {
+      if (piece.width <= rect.width && piece.height <= rect.height) {
         if (!doesIntersectDefect(piece, rect.x, rect.y, slab)) {
           placements.push({
             piece,
@@ -134,8 +159,8 @@ function tryPackingStrategy(
         }
       }
       
-      // Try rotated orientation
-      if (piece.height + minSpacing <= rect.width && piece.width + minSpacing <= rect.height) {
+      // Try rotated orientation (only if dimensions are different)
+      if (piece.width !== piece.height && piece.height <= rect.width && piece.width <= rect.height) {
         if (!doesIntersectDefect(piece, rect.x, rect.y, slab)) {
           placements.push({
             piece,
@@ -170,54 +195,40 @@ function tryPackingStrategy(
         color: PIECE_COLORS[(placedPieces.length) % PIECE_COLORS.length],
       };
       
-      placedPieces.push(newPiece);
-      placed = true;
+      // Update rotated dimensions for L-shapes
+      if (rotated && (piece.type === 'l-left' || piece.type === 'l-right')) {
+        newPiece.cutWidth = piece.cutHeight;
+        newPiece.cutHeight = piece.cutWidth;
+      }
       
+      placedPieces.push(newPiece);
+      
+      // Remove used rectangle
       const index = freeRects.indexOf(rect);
       if (index > -1) {
         freeRects.splice(index, 1);
       }
       
       // Generate new free rectangles
-      const newRects: FreeRectangle[] = [];
-      
-      if (rect.width > width + minSpacing) {
-        newRects.push({
-          x: rect.x + width + minSpacing,
-          y: rect.y,
-          width: rect.width - width - minSpacing,
-          height: rect.height,
-        });
-      }
-      
-      if (rect.height > height + minSpacing) {
-        newRects.push({
-          x: rect.x,
-          y: rect.y + height + minSpacing,
-          width: rect.width,
-          height: rect.height - height - minSpacing,
-        });
-      }
-      
+      const newRects = splitRectangle(rect, newPiece, rect.x, rect.y, minSpacing);
       freeRects.push(...newRects);
       
-      // Remove overlapping rectangles
+      // Remove fully contained rectangles
       for (let i = freeRects.length - 1; i >= 0; i--) {
         const r = freeRects[i];
-        if (r.x < rect.x + width + minSpacing && 
-            r.x + r.width > rect.x &&
-            r.y < rect.y + height + minSpacing && 
-            r.y + r.height > rect.y) {
-          if (r !== rect) {
-            freeRects.splice(i, 1);
+        for (let j = 0; j < freeRects.length; j++) {
+          if (i !== j) {
+            const other = freeRects[j];
+            if (r.x >= other.x && r.y >= other.y &&
+                r.x + r.width <= other.x + other.width &&
+                r.y + r.height <= other.y + other.height) {
+              freeRects.splice(i, 1);
+              break;
+            }
           }
         }
       }
-      
-      break;
-    }
-    
-    if (!placed) {
+    } else {
       unplacedPieces.push(piece);
     }
   }
@@ -233,7 +244,7 @@ function tryPackingStrategy(
     wasteArea: totalArea - usedArea,
     unplacedPieces,
     cuttingSequence: placedPieces.map(p => p.cuttingOrder || 0),
-    combinationsTested: 0, // Will be set by main function
+    combinationsTested: 0,
   };
 }
 
@@ -267,20 +278,6 @@ export function optimizeCutting(
       if (priorityDiff !== 0) return priorityDiff;
       return b.width - a.width;
     },
-    // Strategy 5: Height first
-    (a: Piece, b: Piece) => {
-      const priorityDiff = (b.priority || 1) - (a.priority || 1);
-      if (priorityDiff !== 0) return priorityDiff;
-      return b.height - a.height;
-    },
-    // Strategy 6: Perimeter first
-    (a: Piece, b: Piece) => {
-      const priorityDiff = (b.priority || 1) - (a.priority || 1);
-      if (priorityDiff !== 0) return priorityDiff;
-      const perimeterA = 2 * (a.width + a.height);
-      const perimeterB = 2 * (b.width + b.height);
-      return perimeterB - perimeterA;
-    },
   ];
   
   let bestResult: OptimizationResult | null = null;
@@ -297,7 +294,7 @@ export function optimizeCutting(
   }
   
   if (bestResult) {
-    bestResult.combinationsTested = strategies.length * pieces.length * 2; // Approximate
+    bestResult.combinationsTested = strategies.length * pieces.length * 2;
     return bestResult;
   }
   
