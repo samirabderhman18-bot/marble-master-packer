@@ -11,7 +11,7 @@ import { Statistics } from '@/components/Statistics';
 import { EditPieceModal } from '@/components/EditPieceModal';
 import { CustomShapeCreator } from '@/components/CustomShapeCreator';
 import { CameraCapture } from '@/components/CameraCapture';
-import { Piece, ShapeType, OptimizationResult, SlabDimensions, OptimizationGoal } from '@/types/shapes';
+import { Piece, ShapeType, OptimizationResult, SlabDimensions, OptimizationGoal, FreeRectangle } from '@/types/shapes';
 import { optimizeCutting } from '@/utils/maxrects';
 import { toast } from 'sonner';
 import { Play, Loader2, Settings } from 'lucide-react';
@@ -29,6 +29,7 @@ const Index = () => {
   });
   const [pieces, setPieces] = useState<Piece[]>([]);
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
+  const [freeRectangles, setFreeRectangles] = useState<FreeRectangle[]>([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -129,6 +130,21 @@ const Index = () => {
     setTimeout(() => {
       const result = optimizeCutting(pieces, slab, optimizationGoal);
       setOptimizationResult(result);
+      setFreeRectangles(result.freeRectangles);
+
+      // Update the main pieces array with the new positions
+      const placedPiecesById = new Map(result.pieces.map(p => [p.id, p]));
+      const allPiecesUpdated = pieces.map(p => {
+        const placedVersion = placedPiecesById.get(p.id);
+        if (placedVersion) {
+          return placedVersion;
+        }
+        // It's an unplaced piece. Ensure its x,y are undefined.
+        const { x, y, ...rest } = p;
+        return rest as Piece;
+      });
+      setPieces(allPiecesUpdated);
+
       setIsOptimizing(false);
       
       const message = `${result.combinationsTested.toLocaleString()} combinaisons testées`;
@@ -304,9 +320,10 @@ const Index = () => {
                 </div>
               )}
               <OptimizerCanvas
-                pieces={optimizationResult?.pieces || []}
+                pieces={pieces}
                 slab={slab}
                 unit={unit}
+                freeRectangles={freeRectangles}
                 onPieceClick={(piece) => {
                   setSelectedPiece(piece);
                   setIsEditModalOpen(true);

@@ -49,6 +49,13 @@ export interface DefectZone {
   height: number;
 }
 
+export interface FreeRectangle {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface OptimizationResult {
   pieces: Piece[];
   efficiency: number;
@@ -57,6 +64,7 @@ export interface OptimizationResult {
   unplacedPieces: Piece[];
   cuttingSequence: number[];
   combinationsTested: number;
+  freeRectangles: FreeRectangle[];
 }
 
 export interface SlabDimensions {

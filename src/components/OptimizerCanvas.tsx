@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { Piece, SlabDimensions } from '@/types/shapes';
+import { Piece, SlabDimensions, FreeRectangle } from '@/types/shapes';
 import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 
 interface OptimizerCanvasProps {
   pieces: Piece[];
   slab: SlabDimensions;
+  freeRectangles?: FreeRectangle[];
   onPieceClick: (piece: Piece) => void;
   onPieceMove: (piece: Piece, x: number, y: number) => void;
   onPieceRotate?: (piece: Piece) => void;
   unit: 'cm' | 'mm';
 }
 
-export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove, onPieceRotate, unit }: OptimizerCanvasProps) => {
+export const OptimizerCanvas = ({ pieces, slab, freeRectangles, onPieceClick, onPieceMove, onPieceRotate, unit }: OptimizerCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [draggingPiece, setDraggingPiece] = useState<Piece | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -32,7 +33,7 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove, onPie
     
     const scaleX = (availableWidth / slab.width) * zoom;
     const scaleY = (availableHeight / slab.height) * zoom;
-    const scale = Math.min(scaleX, scaleY, 1 * zoom);
+    const scale = Math.min(scaleX, scaleY);
     
     const scaledWidth = slab.width * scale;
     const scaledHeight = slab.height * scale;
@@ -227,8 +228,31 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove, onPie
         ctx.fillText(piece.cuttingOrder.toString(), x + w / 2, y + h / 2);
       }
     });
+
+    // Draw free rectangles
+    if (freeRectangles) {
+      ctx.fillStyle = 'rgba(0, 0, 255, 0.1)';
+      ctx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 5]);
+      freeRectangles.forEach(rect => {
+        ctx.fillRect(
+          offsetX + rect.x * scale,
+          offsetY + rect.y * scale,
+          rect.width * scale,
+          rect.height * scale
+        );
+        ctx.strokeRect(
+          offsetX + rect.x * scale,
+          offsetY + rect.y * scale,
+          rect.width * scale,
+          rect.height * scale
+        );
+      });
+      ctx.setLineDash([]);
+    }
     
-  }, [pieces, slab, zoom, selectedPiece, unit]);
+  }, [pieces, slab, selectedPiece, unit, freeRectangles, zoom]);
   
   const drawMeasurements = (ctx: CanvasRenderingContext2D, piece: Piece, x: number, y: number, w: number, h: number) => {
     const measurementOffset = 20;
@@ -284,7 +308,7 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove, onPie
     const padding = 60;
     const availableWidth = canvasRef.current!.width - padding * 2;
     const availableHeight = canvasRef.current!.height - padding * 2;
-    const scale = Math.min(availableWidth / slab.width, availableHeight / slab.height, 1);
+    const scale = Math.min(availableWidth / slab.width, availableHeight / slab.height) * zoom;
     const offsetX = padding + (availableWidth - slab.width * scale) / 2;
     const offsetY = padding + (availableHeight - slab.height * scale) / 2;
 
@@ -316,7 +340,7 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove, onPie
     const padding = 60;
     const availableWidth = canvasRef.current!.width - padding * 2;
     const availableHeight = canvasRef.current!.height - padding * 2;
-    const scale = Math.min(availableWidth / slab.width, availableHeight / slab.height, 1);
+    const scale = Math.min(availableWidth / slab.width, availableHeight / slab.height) * zoom;
     const offsetX = padding + (availableWidth - slab.width * scale) / 2;
     const offsetY = padding + (availableHeight - slab.height * scale) / 2;
 
@@ -338,7 +362,7 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove, onPie
     const padding = 60;
     const availableWidth = canvasRef.current!.width - padding * 2;
     const availableHeight = canvasRef.current!.height - padding * 2;
-    const scale = Math.min(availableWidth / slab.width, availableHeight / slab.height, 1);
+    const scale = Math.min(availableWidth / slab.width, availableHeight / slab.height) * zoom;
     const offsetX = padding + (availableWidth - slab.width * scale) / 2;
     const offsetY = padding + (availableHeight - slab.height * scale) / 2;
     
