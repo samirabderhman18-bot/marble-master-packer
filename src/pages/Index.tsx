@@ -10,37 +10,47 @@ import { Statistics } from '@/components/Statistics';
 import { EditPieceModal } from '@/components/EditPieceModal';
 import { CustomShapeCreator } from '@/components/CustomShapeCreator';
 import { CameraCapture } from '@/components/CameraCapture';
-import { Piece, ShapeType, OptimizationResult, SlabDimensions } from '@/types/shapes';
+import { Piece, ShapeType, OptimizationResult, SlabDimensions, OptimizationGoal } from '@/types/shapes';
 import { optimizeCutting } from '@/utils/maxrects';
 import { toast } from 'sonner';
 import { Play, Loader2, Camera } from 'lucide-react';
 
 const Index = () => {
-  const [slab, setSlab] = useState<SlabDimensions>({ width: 3000, height: 1400 });
+  const [slab, setSlab] = useState<SlabDimensions>({ 
+    width: 300, 
+    height: 140, 
+    margin: 1,
+    minSpacing: 0.5,
+    grainDirection: 'none',
+    defects: []
+  });
   const [pieces, setPieces] = useState<Piece[]>([]);
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [optimizationGoal, setOptimizationGoal] = useState<OptimizationGoal>('waste-reduction');
 
   const addShape = (type: ShapeType) => {
     const defaults: Record<ShapeType, Partial<Piece>> = {
-      'rectangle': { width: 300, height: 200 },
-      'l-left': { width: 400, height: 300, cutWidth: 150, cutHeight: 100 },
-      'l-right': { width: 400, height: 300, cutWidth: 150, cutHeight: 100 },
-      't-shape': { width: 400, height: 300, topWidth: 400, stemWidth: 150 },
-      'circle': { radius: 150, width: 300, height: 300 },
-      'triangle': { base: 300, triangleHeight: 250, width: 300, height: 250 },
-      'custom': { width: 300, height: 200 },
+      'rectangle': { width: 30, height: 20 },
+      'l-left': { width: 40, height: 30, cutWidth: 15, cutHeight: 10 },
+      'l-right': { width: 40, height: 30, cutWidth: 15, cutHeight: 10 },
+      't-shape': { width: 40, height: 30, topWidth: 40, stemWidth: 15 },
+      'circle': { radius: 15, width: 30, height: 30 },
+      'triangle': { base: 30, triangleHeight: 25, width: 30, height: 25 },
+      'custom': { width: 30, height: 20 },
     };
 
     const newPiece: Piece = {
       id: crypto.randomUUID(),
       type,
       ...defaults[type],
-      width: defaults[type].width || 300,
-      height: defaults[type].height || 200,
+      width: defaults[type].width || 30,
+      height: defaults[type].height || 20,
+      priority: 1,
+      grainDirection: 'none',
     };
 
     setPieces([...pieces, newPiece]);
@@ -70,14 +80,13 @@ const Index = () => {
   };
 
   const handleCapture = (imageData: string) => {
-    // Mock measurement extraction
     console.log('Captured image data:', imageData.substring(0, 30) + '...');
     toast.info('Analyse de l\'image en cours...');
     setTimeout(() => {
-      const mockWidth = Math.floor(Math.random() * 1000) + 2000;
-      const mockHeight = Math.floor(Math.random() * 500) + 1000;
-      setSlab({ width: mockWidth, height: mockHeight });
-      toast.success(`Dimensions mises à jour: ${mockWidth}x${mockHeight}mm`);
+      const mockWidth = Math.floor(Math.random() * 100) + 200;
+      const mockHeight = Math.floor(Math.random() * 50) + 100;
+      setSlab({ ...slab, width: mockWidth, height: mockHeight });
+      toast.success(`Dimensions mises à jour: ${mockWidth}x${mockHeight}cm`);
     }, 1500);
   };
 
@@ -90,14 +99,16 @@ const Index = () => {
     setIsOptimizing(true);
     
     setTimeout(() => {
-      const result = optimizeCutting(pieces, slab);
+      const result = optimizeCutting(pieces, slab, optimizationGoal);
       setOptimizationResult(result);
       setIsOptimizing(false);
       
+      const message = `${result.combinationsTested.toLocaleString()} combinaisons testées`;
+      
       if (result.unplacedPieces.length > 0) {
-        toast.warning(`${result.unplacedPieces.length} pièce(s) non placée(s)`);
+        toast.warning(`${result.unplacedPieces.length} pièce(s) non placée(s). ${message}`);
       } else {
-        toast.success(`Optimisation réussie! Efficacité: ${result.efficiency}%`);
+        toast.success(`Efficacité: ${result.efficiency}% (cible: 70-85%). ${message}`);
       }
     }, 800);
   };
@@ -127,39 +138,93 @@ const Index = () => {
             Optimiseur de Découpe de Marbre
           </h1>
           <p className="text-muted-foreground">
-            Optimisez automatiquement la découpe de vos pièces avec l'algorithme MaxRects
+            Testez des milliers de combinaisons pour maximiser l'utilisation de matériau (cible: 70-85%)
           </p>
         </div>
 
-        {/* Slab Dimensions */}
+        {/* Slab Dimensions & Settings */}
         <Card className="p-4 shadow-md">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Dimensions de la Dalle</h3>
+            <h3 className="text-lg font-semibold">Configuration de la Dalle</h3>
             <Button variant="outline" size="sm" onClick={() => setIsCameraOpen(true)}>
               <Camera className="w-4 h-4 mr-2" />
               Capturer les Mesures
             </Button>
           </div>
-          <div className="grid grid-cols-2 gap-4 max-w-md">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="slabWidth">Longueur (mm)</Label>
+              <Label htmlFor="slabWidth">Longueur (cm)</Label>
               <Input
                 id="slabWidth"
                 type="number"
                 value={slab.width}
                 onChange={(e) => setSlab({ ...slab, width: parseFloat(e.target.value) })}
-                min={100}
+                min={10}
+                step={0.1}
               />
             </div>
             <div>
-              <Label htmlFor="slabHeight">Largeur (mm)</Label>
+              <Label htmlFor="slabHeight">Largeur (cm)</Label>
               <Input
                 id="slabHeight"
                 type="number"
                 value={slab.height}
                 onChange={(e) => setSlab({ ...slab, height: parseFloat(e.target.value) })}
-                min={100}
+                min={10}
+                step={0.1}
               />
+            </div>
+            <div>
+              <Label htmlFor="margin">Marge (cm)</Label>
+              <Input
+                id="margin"
+                type="number"
+                value={slab.margin || 1}
+                onChange={(e) => setSlab({ ...slab, margin: parseFloat(e.target.value) })}
+                min={0}
+                step={0.1}
+              />
+            </div>
+            <div>
+              <Label htmlFor="spacing">Espacement (cm)</Label>
+              <Input
+                id="spacing"
+                type="number"
+                value={slab.minSpacing || 0.5}
+                onChange={(e) => setSlab({ ...slab, minSpacing: parseFloat(e.target.value) })}
+                min={0}
+                step={0.1}
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div>
+              <Label htmlFor="grain">Direction du Grain</Label>
+              <select
+                id="grain"
+                value={slab.grainDirection || 'none'}
+                onChange={(e) => setSlab({ ...slab, grainDirection: e.target.value as any })}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+              >
+                <option value="none">Aucune</option>
+                <option value="horizontal">Horizontal</option>
+                <option value="vertical">Vertical</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="goal">Objectif d'Optimisation</Label>
+              <select
+                id="goal"
+                value={optimizationGoal}
+                onChange={(e) => setOptimizationGoal(e.target.value as OptimizationGoal)}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+              >
+                <option value="waste-reduction">Réduction des Chutes</option>
+                <option value="production-speed">Vitesse de Production</option>
+                <option value="aesthetic-matching">Correspondance Esthétique</option>
+                <option value="cost-efficiency">Efficacité des Coûts</option>
+              </select>
             </div>
           </div>
         </Card>

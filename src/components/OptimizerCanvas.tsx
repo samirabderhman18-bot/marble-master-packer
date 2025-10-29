@@ -65,12 +65,33 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
     ctx.fillStyle = 'hsl(var(--foreground))';
     ctx.font = 'bold 16px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText(`Longueur: ${slab.width}mm`, offsetX + scaledWidth / 2, offsetY - 30);
+    ctx.fillText(`Longueur: ${slab.width}cm`, offsetX + scaledWidth / 2, offsetY - 30);
     ctx.save();
     ctx.translate(offsetX - 30, offsetY + scaledHeight / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.fillText(`Largeur: ${slab.height}mm`, 0, 0);
+    ctx.fillText(`Largeur: ${slab.height}cm`, 0, 0);
     ctx.restore();
+    
+    // Draw defect zones if any
+    if (slab.defects && slab.defects.length > 0) {
+      slab.defects.forEach(defect => {
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.fillRect(
+          offsetX + defect.x * scale,
+          offsetY + defect.y * scale,
+          defect.width * scale,
+          defect.height * scale
+        );
+        ctx.strokeRect(
+          offsetX + defect.x * scale,
+          offsetY + defect.y * scale,
+          defect.width * scale,
+          defect.height * scale
+        );
+      });
+    }
     
     // Show message if no pieces
     if (pieces.length === 0) {
@@ -174,12 +195,23 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
       // Draw dimensions and rotation indicator
       drawMeasurements(ctx, piece, x, y, w, h);
       
-      // Draw coordinates
-      ctx.fillStyle = 'hsl(var(--foreground))';
-      ctx.font = '10px system-ui';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`(${Math.round(piece.x)}, ${Math.round(piece.y)})`, x + w / 2, y + h / 2 + 15);
+      // Draw cutting order
+      if (piece.cuttingOrder) {
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = 'hsl(var(--foreground))';
+        ctx.lineWidth = 2;
+        const radius = 15;
+        ctx.beginPath();
+        ctx.arc(x + w / 2, y + h / 2, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.fillStyle = 'hsl(var(--foreground))';
+        ctx.font = 'bold 14px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(piece.cuttingOrder.toString(), x + w / 2, y + h / 2);
+      }
     });
     
   }, [pieces, slab]);
@@ -199,7 +231,7 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
     ctx.moveTo(x, y - measurementOffset);
     ctx.lineTo(x + w, y - measurementOffset);
     ctx.stroke();
-    ctx.fillText(`${piece.width}mm`, x + w / 2, y - measurementOffset - measurementTextOffset);
+    ctx.fillText(`${piece.width}cm`, x + w / 2, y - measurementOffset - measurementTextOffset);
 
     // Vertical measurement
     ctx.beginPath();
@@ -209,8 +241,17 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
     ctx.save();
     ctx.translate(x - measurementOffset - measurementTextOffset, y + h / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.fillText(`${piece.height}mm`, 0, 0);
+    ctx.fillText(`${piece.height}cm`, 0, 0);
     ctx.restore();
+    
+    // Rotation indicator
+    if (piece.rotated) {
+      ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
+      ctx.font = 'bold 10px system-ui';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText('↻', x + w - 5, y + 5);
+    }
   };
 
   const getMousePos = (e: React.MouseEvent) => {

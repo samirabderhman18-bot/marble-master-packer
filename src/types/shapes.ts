@@ -13,6 +13,9 @@ export interface Piece {
   x?: number;
   y?: number;
   rotated?: boolean;
+  priority?: number; // Higher priority pieces placed first
+  grainDirection?: 'horizontal' | 'vertical' | 'none';
+  cuttingOrder?: number;
   
   // For L-shapes
   cutWidth?: number;
@@ -36,15 +39,31 @@ export interface Piece {
   color?: string;
 }
 
+export type OptimizationGoal = 'waste-reduction' | 'production-speed' | 'aesthetic-matching' | 'cost-efficiency';
+
+export interface DefectZone {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface OptimizationResult {
   pieces: Piece[];
   efficiency: number;
   wasteArea: number;
   usedArea: number;
   unplacedPieces: Piece[];
+  cuttingSequence: number[];
+  combinationsTested: number;
 }
 
 export interface SlabDimensions {
   width: number;
   height: number;
+  margin?: number;
+  minSpacing?: number;
+  grainDirection?: 'horizontal' | 'vertical' | 'none';
+  defects?: DefectZone[];
 }

@@ -17,30 +17,36 @@ export const Statistics = ({ result, totalArea }: StatisticsProps) => {
     );
   }
 
+  const efficiencyColor = result.efficiency >= 70 && result.efficiency <= 85 
+    ? 'text-green-500' 
+    : result.efficiency > 85 
+      ? 'text-blue-500' 
+      : 'text-orange-500';
+  
   const stats = [
     {
       icon: BarChart3,
-      label: 'Efficacité',
+      label: 'Efficacité (cible: 70-85%)',
       value: `${result.efficiency}%`,
-      color: 'text-blue-500',
+      color: efficiencyColor,
     },
     {
       icon: Package,
       label: 'Surface Utilisée',
-      value: `${result.usedArea} mm²`,
+      value: `${Math.round(result.usedArea)} cm²`,
       color: 'text-green-500',
     },
     {
       icon: TrendingUp,
       label: 'Chutes',
-      value: `${result.wasteArea} mm²`,
+      value: `${Math.round(result.wasteArea)} cm²`,
       color: 'text-orange-500',
     },
     {
       icon: AlertCircle,
-      label: 'Non Placées',
-      value: result.unplacedPieces.length,
-      color: 'text-red-500',
+      label: 'Combinaisons Testées',
+      value: result.combinationsTested.toLocaleString(),
+      color: 'text-blue-500',
     },
   ];
 
