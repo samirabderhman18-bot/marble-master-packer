@@ -7,6 +7,7 @@ import { Piece } from '@/types/shapes';
 interface PiecesListProps {
   pieces: Piece[];
   onRemove: (id: string) => void;
+  unit: 'cm' | 'mm';
 }
 
 const getShapeLabel = (type: string) => {
@@ -22,21 +23,21 @@ const getShapeLabel = (type: string) => {
   return labels[type] || type;
 };
 
-const getPieceDimensions = (piece: Piece) => {
+const getPieceDimensions = (piece: Piece, unit: string) => {
   switch (piece.type) {
     case 'circle':
-      return `R: ${piece.radius}mm`;
+      return `R: ${piece.radius}${unit}`;
     case 'triangle':
-      return `Base: ${piece.base}mm, H: ${piece.triangleHeight}mm`;
+      return `Base: ${piece.base}${unit}, H: ${piece.triangleHeight}${unit}`;
     case 'l-left':
     case 'l-right':
-      return `${piece.width}×${piece.height}mm (Découpe: ${piece.cutWidth}×${piece.cutHeight}mm)`;
+      return `${piece.width}×${piece.height}${unit} (Découpe: ${piece.cutWidth}×${piece.cutHeight}${unit})`;
     default:
-      return `${piece.width}×${piece.height}mm`;
+      return `${piece.width}×${piece.height}${unit}`;
   }
 };
 
-export const PiecesList = ({ pieces, onRemove }: PiecesListProps) => {
+export const PiecesList = ({ pieces, onRemove, unit }: PiecesListProps) => {
   return (
     <Card className="p-4 shadow-md">
       <h3 className="text-lg font-semibold mb-4 text-foreground">Pièces à Découper</h3>
@@ -50,11 +51,12 @@ export const PiecesList = ({ pieces, onRemove }: PiecesListProps) => {
             {pieces.map((piece) => (
               <div
                 key={piece.id}
-                className="flex items-center justify-between p-3 bg-accent rounded-lg hover:bg-accent/80 transition-colors"
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-accent/80 transition-colors"
+                style={{ backgroundColor: piece.color || 'hsl(var(--accent))' }}
               >
                 <div>
                   <p className="font-medium text-sm">{getShapeLabel(piece.type)}</p>
-                  <p className="text-xs text-muted-foreground">{getPieceDimensions(piece)}</p>
+                  <p className="text-xs text-muted-foreground">{getPieceDimensions(piece, unit)}</p>
                 </div>
                 <Button
                   variant="ghost"

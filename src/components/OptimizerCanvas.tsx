@@ -1,17 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { Piece, SlabDimensions } from '@/types/shapes';
+import { Button } from '@/components/ui/button';
+import { ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 
 interface OptimizerCanvasProps {
   pieces: Piece[];
   slab: SlabDimensions;
   onPieceClick: (piece: Piece) => void;
   onPieceMove: (piece: Piece, x: number, y: number) => void;
+  onPieceRotate?: (piece: Piece) => void;
+  unit: 'cm' | 'mm';
 }
 
-export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: OptimizerCanvasProps) => {
+export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove, onPieceRotate, unit }: OptimizerCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [draggingPiece, setDraggingPiece] = useState<Piece | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
   
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -24,9 +30,9 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
     const availableWidth = canvas.width - padding * 2;
     const availableHeight = canvas.height - padding * 2;
     
-    const scaleX = availableWidth / slab.width;
-    const scaleY = availableHeight / slab.height;
-    const scale = Math.min(scaleX, scaleY, 1);
+    const scaleX = (availableWidth / slab.width) * zoom;
+    const scaleY = (availableHeight / slab.height) * zoom;
+    const scale = Math.min(scaleX, scaleY, 1 * zoom);
     
     const scaledWidth = slab.width * scale;
     const scaledHeight = slab.height * scale;
@@ -65,11 +71,11 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
     ctx.fillStyle = 'hsl(var(--foreground))';
     ctx.font = 'bold 16px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText(`Longueur: ${slab.width}cm`, offsetX + scaledWidth / 2, offsetY - 30);
+    ctx.fillText(`Longueur: ${slab.width}${unit}`, offsetX + scaledWidth / 2, offsetY - 30);
     ctx.save();
     ctx.translate(offsetX - 30, offsetY + scaledHeight / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.fillText(`Largeur: ${slab.height}cm`, 0, 0);
+    ctx.fillText(`Largeur: ${slab.height}${unit}`, 0, 0);
     ctx.restore();
     
     // Draw defect zones if any
@@ -110,6 +116,14 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
       const y = offsetY + piece.y * scale;
       const w = piece.width * scale;
       const h = piece.height * scale;
+      
+      // Highlight selected piece
+      const isSelected = selectedPiece?.id === piece.id;
+      if (isSelected) {
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
+      }
       
       ctx.fillStyle = piece.color || 'hsl(var(--piece-fill-1))';
       ctx.strokeStyle = 'hsl(var(--piece-stroke))';
@@ -214,7 +228,7 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
       }
     });
     
-  }, [pieces, slab]);
+  }, [pieces, slab, zoom, selectedPiece, unit]);
   
   const drawMeasurements = (ctx: CanvasRenderingContext2D, piece: Piece, x: number, y: number, w: number, h: number) => {
     const measurementOffset = 20;
@@ -231,7 +245,7 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
     ctx.moveTo(x, y - measurementOffset);
     ctx.lineTo(x + w, y - measurementOffset);
     ctx.stroke();
-    ctx.fillText(`${piece.width}cm`, x + w / 2, y - measurementOffset - measurementTextOffset);
+    ctx.fillText(`${piece.width}${unit}`, x + w / 2, y - measurementOffset - measurementTextOffset);
 
     // Vertical measurement
     ctx.beginPath();
@@ -241,7 +255,7 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
     ctx.save();
     ctx.translate(x - measurementOffset - measurementTextOffset, y + h / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.fillText(`${piece.height}cm`, 0, 0);
+    ctx.fillText(`${piece.height}${unit}`, 0, 0);
     ctx.restore();
     
     // Rotation indicator
@@ -284,6 +298,7 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
 
       if (mousePos.x >= x && mousePos.x <= x + w && mousePos.y >= y && mousePos.y <= y + h) {
         setDraggingPiece(piece);
+        setSelectedPiece(piece);
         setDragOffset({
           x: (mousePos.x - x) / scale,
           y: (mousePos.y - y) / scale,
@@ -337,23 +352,70 @@ export const OptimizerCanvas = ({ pieces, slab, onPieceClick, onPieceMove }: Opt
 
       if (mousePos.x >= x && mousePos.x <= x + w && mousePos.y >= y && mousePos.y <= y + h) {
         onPieceClick(piece);
+        setSelectedPiece(piece);
         return;
       }
     }
   };
 
+  const handleRotateSelected = () => {
+    if (selectedPiece && onPieceRotate) {
+      onPieceRotate(selectedPiece);
+    }
+  };
+
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev + 0.2, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev - 0.2, 0.5));
+  };
+
   return (
-    <canvas
-      ref={canvasRef}
-      width={1200}
-      height={800}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onDoubleClick={handleDoubleClick}
-      className="w-full h-auto border-2 border-primary rounded-lg cursor-pointer shadow-lg"
-      style={{ background: '#ffffff' }}
-    />
+    <div className="relative">
+      {/* Zoom and Rotation Controls */}
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={handleZoomIn}
+          className="shadow-lg"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={handleZoomOut}
+          className="shadow-lg"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </Button>
+        {selectedPiece && onPieceRotate && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleRotateSelected}
+            className="shadow-lg animate-fade-in"
+          >
+            <RotateCw className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+
+      <canvas
+        ref={canvasRef}
+        width={1200}
+        height={800}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onDoubleClick={handleDoubleClick}
+        className="w-full h-auto border-2 border-primary rounded-lg cursor-pointer shadow-lg"
+        style={{ background: '#ffffff' }}
+      />
+    </div>
   );
 };

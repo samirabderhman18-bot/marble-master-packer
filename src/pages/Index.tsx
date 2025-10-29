@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Play, Loader2, Camera } from 'lucide-react';
 
 const Index = () => {
+  const [unit, setUnit] = useState<'cm' | 'mm'>('cm');
   const [slab, setSlab] = useState<SlabDimensions>({ 
     width: 300, 
     height: 140, 
@@ -31,6 +32,9 @@ const Index = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [optimizationGoal, setOptimizationGoal] = useState<OptimizationGoal>('waste-reduction');
+  
+  const convertToUnit = (value: number) => unit === 'mm' ? value * 10 : value;
+  const convertFromUnit = (value: number) => unit === 'mm' ? value / 10 : value;
 
   const addShape = (type: ShapeType) => {
     const defaults: Record<ShapeType, Partial<Piece>> = {
@@ -75,8 +79,19 @@ const Index = () => {
   };
 
   const handleSavePiece = (editedPiece: Piece) => {
-    setPieces(pieces.map(p => p.id === editedPiece.id ? editedPiece : p));
+    setPieces(pieces.map(p => p.id === editedPiece.id ? { ...editedPiece, x: undefined, y: undefined } : p));
     toast.success('Pièce mise à jour!');
+  };
+  
+  const handlePieceRotate = (piece: Piece) => {
+    const rotatedPiece: Piece = {
+      ...piece,
+      width: piece.height,
+      height: piece.width,
+      rotated: !piece.rotated,
+    };
+    setPieces(pieces.map(p => p.id === piece.id ? rotatedPiece : p));
+    toast.success('Pièce pivotée!');
   };
 
   const handleCapture = (imageData: string) => {
@@ -85,8 +100,10 @@ const Index = () => {
     setTimeout(() => {
       const mockWidth = Math.floor(Math.random() * 100) + 200;
       const mockHeight = Math.floor(Math.random() * 50) + 100;
-      setSlab({ ...slab, width: mockWidth, height: mockHeight });
-      toast.success(`Dimensions mises à jour: ${mockWidth}x${mockHeight}cm`);
+      const finalWidth = unit === 'mm' ? mockWidth * 10 : mockWidth;
+      const finalHeight = unit === 'mm' ? mockHeight * 10 : mockHeight;
+      setSlab({ ...slab, width: finalWidth, height: finalHeight });
+      toast.success(`Dimensions mises à jour: ${mockWidth}x${mockHeight}${unit}`);
     }, 1500);
   };
 
@@ -146,54 +163,74 @@ const Index = () => {
         <Card className="p-4 shadow-md">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Configuration de la Dalle</h3>
-            <Button variant="outline" size="sm" onClick={() => setIsCameraOpen(true)}>
-              <Camera className="w-4 h-4 mr-2" />
-              Capturer les Mesures
-            </Button>
+            <div className="flex gap-2">
+              <div className="flex rounded-md border border-input">
+                <button
+                  onClick={() => setUnit('cm')}
+                  className={`px-3 py-1 text-sm font-medium transition-colors ${
+                    unit === 'cm' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-accent'
+                  }`}
+                >
+                  cm
+                </button>
+                <button
+                  onClick={() => setUnit('mm')}
+                  className={`px-3 py-1 text-sm font-medium transition-colors ${
+                    unit === 'mm' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-accent'
+                  }`}
+                >
+                  mm
+                </button>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setIsCameraOpen(true)}>
+                <Camera className="w-4 h-4 mr-2" />
+                Capturer
+              </Button>
+            </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="slabWidth">Longueur (cm)</Label>
+              <Label htmlFor="slabWidth">Longueur ({unit})</Label>
               <Input
                 id="slabWidth"
                 type="number"
-                value={slab.width}
-                onChange={(e) => setSlab({ ...slab, width: parseFloat(e.target.value) })}
-                min={10}
-                step={0.1}
+                value={convertToUnit(slab.width)}
+                onChange={(e) => setSlab({ ...slab, width: convertFromUnit(parseFloat(e.target.value)) })}
+                min={1}
+                step={unit === 'mm' ? 1 : 0.1}
               />
             </div>
             <div>
-              <Label htmlFor="slabHeight">Largeur (cm)</Label>
+              <Label htmlFor="slabHeight">Largeur ({unit})</Label>
               <Input
                 id="slabHeight"
                 type="number"
-                value={slab.height}
-                onChange={(e) => setSlab({ ...slab, height: parseFloat(e.target.value) })}
-                min={10}
-                step={0.1}
+                value={convertToUnit(slab.height)}
+                onChange={(e) => setSlab({ ...slab, height: convertFromUnit(parseFloat(e.target.value)) })}
+                min={1}
+                step={unit === 'mm' ? 1 : 0.1}
               />
             </div>
             <div>
-              <Label htmlFor="margin">Marge (cm)</Label>
+              <Label htmlFor="margin">Marge ({unit})</Label>
               <Input
                 id="margin"
                 type="number"
-                value={slab.margin || 1}
-                onChange={(e) => setSlab({ ...slab, margin: parseFloat(e.target.value) })}
+                value={convertToUnit(slab.margin || 1)}
+                onChange={(e) => setSlab({ ...slab, margin: convertFromUnit(parseFloat(e.target.value)) })}
                 min={0}
-                step={0.1}
+                step={unit === 'mm' ? 1 : 0.1}
               />
             </div>
             <div>
-              <Label htmlFor="spacing">Espacement (cm)</Label>
+              <Label htmlFor="spacing">Espacement ({unit})</Label>
               <Input
                 id="spacing"
                 type="number"
-                value={slab.minSpacing || 0.5}
-                onChange={(e) => setSlab({ ...slab, minSpacing: parseFloat(e.target.value) })}
+                value={convertToUnit(slab.minSpacing || 0.5)}
+                onChange={(e) => setSlab({ ...slab, minSpacing: convertFromUnit(parseFloat(e.target.value)) })}
                 min={0}
-                step={0.1}
+                step={unit === 'mm' ? 1 : 0.1}
               />
             </div>
           </div>
@@ -244,11 +281,13 @@ const Index = () => {
               <OptimizerCanvas
                 pieces={optimizationResult?.pieces || []}
                 slab={slab}
+                unit={unit}
                 onPieceClick={(piece) => {
                   setSelectedPiece(piece);
                   setIsEditModalOpen(true);
                 }}
                 onPieceMove={handlePieceMove}
+                onPieceRotate={handlePieceRotate}
               />
             </Card>
 
@@ -276,7 +315,7 @@ const Index = () => {
           <div className="space-y-4">
             <ShapeLibrary onAddShape={addShape} />
             <CustomShapeCreator onAdd={addCustomPiece} />
-            <PiecesList pieces={pieces} onRemove={removePiece} />
+            <PiecesList pieces={pieces} onRemove={removePiece} unit={unit} />
             <Statistics result={optimizationResult} totalArea={slab.width * slab.height} />
           </div>
         </div>

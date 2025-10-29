@@ -15,12 +15,14 @@ interface PlacementAttempt {
 }
 
 const PIECE_COLORS = [
-  'hsl(210, 100%, 85%)',  // Light blue
-  'hsl(120, 60%, 85%)',   // Light green
-  'hsl(340, 85%, 85%)',   // Light pink
-  'hsl(45, 100%, 85%)',   // Light yellow
-  'hsl(270, 70%, 85%)',   // Light purple
-  'hsl(30, 100%, 85%)',   // Light orange
+  'hsl(210, 85%, 70%)',   // Vibrant blue
+  'hsl(145, 75%, 65%)',   // Vibrant green
+  'hsl(340, 80%, 70%)',   // Vibrant pink
+  'hsl(45, 95%, 65%)',    // Vibrant yellow
+  'hsl(270, 75%, 70%)',   // Vibrant purple
+  'hsl(25, 90%, 65%)',    // Vibrant orange
+  'hsl(195, 80%, 65%)',   // Vibrant cyan
+  'hsl(15, 85%, 68%)',    // Vibrant coral
 ];
 
 function getPieceArea(piece: Piece): number {
