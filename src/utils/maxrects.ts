@@ -286,6 +286,7 @@ function beamSearchPacking(
     wasteArea: totalArea - usedArea, unplacedPieces,
     cuttingSequence: placedPieces.map(p => p.cuttingOrder || 0),
     combinationsTested: 0,
+    freeRectangles: freeRects,
   };
 }
 
@@ -301,7 +302,12 @@ function createRandomIndividual(pieceCount: number): GeneticIndividual {
   }
   const rotations = Array.from({ length: pieceCount }, () => Math.random() < 0.5);
   
-  return { permutation, rotations, fitness: 0, result: {} as OptimizationResult };
+  return {
+    permutation,
+    rotations,
+    fitness: 0,
+    result: { freeRectangles: [] } as OptimizationResult
+  };
 }
 
 function evaluateIndividual(
@@ -518,6 +524,6 @@ export function optimizeCutting(
   return {
     pieces: [], efficiency: 0, usedArea: 0,
     wasteArea: slab.width * slab.height, unplacedPieces: pieces,
-    cuttingSequence: [], combinationsTested: 0,
+    cuttingSequence: [], combinationsTested: 0, freeRectangles: [],
   };
 }

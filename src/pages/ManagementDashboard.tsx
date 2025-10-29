@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { OrderManagement } from '@/components/OrderManagement';
 import { StockManagement } from '@/components/StockManagement';
 import { OffCutManagement } from '@/components/OffCutManagement';
 import { Order, Stock, OffCut } from '@/types/orders';
-import { ShoppingCart, Package, Recycle, TrendingUp } from 'lucide-react';
+import { ShoppingCart, Package, Recycle, TrendingUp, LayoutGrid } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 const ManagementDashboard = () => {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [stock, setStock] = useState<Stock[]>([]);
   const [offCuts, setOffCuts] = useState<OffCut[]>([]);
@@ -98,9 +101,20 @@ const ManagementDashboard = () => {
       <div className="max-w-[1800px] mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Tableau de Bord de Gestion
-          </h1>
+          <div className="flex items-center justify-center gap-4">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              Tableau de Bord de Gestion
+            </h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/')}
+              className="ml-4"
+            >
+              <LayoutGrid className="w-4 h-4 mr-2" />
+              Optimiseur
+            </Button>
+          </div>
           <p className="text-muted-foreground">
             Gestion complète des commandes, stock et chutes
           </p>
