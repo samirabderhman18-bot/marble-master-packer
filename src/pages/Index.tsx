@@ -13,8 +13,9 @@ import { CustomShapeCreator } from '@/components/CustomShapeCreator';
 import { CameraCapture } from '@/components/CameraCapture';
 import { Piece, ShapeType, OptimizationResult, SlabDimensions, OptimizationGoal, FreeRectangle } from '@/types/shapes';
 import { optimizeCutting } from '@/utils/maxrects';
+import { generateDXF, downloadDXF } from '@/utils/dxfExport';
 import { toast } from 'sonner';
-import { Play, Loader2, Settings } from 'lucide-react';
+import { Play, Loader2, Settings, Download } from 'lucide-react';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -119,6 +120,23 @@ const Index = () => {
     }, 1500);
   };
 
+  const handleExportDXF = () => {
+    if (pieces.length === 0) {
+      toast.error('Aucune pièce à exporter');
+      return;
+    }
+
+    try {
+      const dxfContent = generateDXF(pieces, unit);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      downloadDXF(dxfContent, `pieces_${timestamp}.dxf`);
+      toast.success(`${pieces.length} pièce(s) exportée(s) en DXF pour AlphaCAM!`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Erreur lors de l\'export DXF');
+    }
+  };
+
   const runOptimization = () => {
     if (pieces.length === 0) {
       setOptimizationResult(null);
@@ -180,7 +198,7 @@ const Index = () => {
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center gap-4">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              Optimiseur de Découpe de Marbre
+              Créateur de Formes pour AlphaCAM
             </h1>
             <Button
               variant="outline"
@@ -193,7 +211,7 @@ const Index = () => {
             </Button>
           </div>
           <p className="text-muted-foreground">
-            Testez des milliers de combinaisons pour maximiser l'utilisation de matériau (cible: 70-85%)
+            Créez vos pièces et exportez-les au format DXF compatible AlphaCAM
           </p>
         </div>
 
@@ -333,24 +351,38 @@ const Index = () => {
               />
             </Card>
 
-            <Button 
-              onClick={runOptimization} 
-              size="lg" 
-              className="w-full"
-              disabled={pieces.length === 0 || isOptimizing}
-            >
-              {isOptimizing ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Optimisation...
-                </>
-              ) : (
-                <>
-                  <Play className="w-5 h-5 mr-2" />
-                  Lancer l'Optimisation
-                </>
-              )}
-            </Button>
+            <div className="grid grid-cols-2 gap-4">
+              <Button 
+                onClick={handleExportDXF} 
+                size="lg" 
+                className="w-full"
+                disabled={pieces.length === 0}
+                variant="default"
+              >
+                <Download className="w-5 h-5 mr-2" />
+                Exporter DXF pour AlphaCAM
+              </Button>
+              
+              <Button 
+                onClick={runOptimization} 
+                size="lg" 
+                className="w-full"
+                disabled={pieces.length === 0 || isOptimizing}
+                variant="outline"
+              >
+                {isOptimizing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Optimisation...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-5 h-5 mr-2" />
+                    Optimiser (Optionnel)
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Side Panel */}
